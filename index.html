@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlightCal — Flight Email to .ics</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --border: #d2d2d7;
+    --accent: #0071e3;
+    --accent-hover: #0077ed;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --danger: #ff3b30;
+    --warn: #ff9500;
+    --success: #34c759;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ── API Key section ── */
+  .apikey-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .apikey-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .apikey-toggle:hover { background: #f9f9fb; }
+
+  .apikey-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+  }
+  .apikey-status.set { background: var(--success); }
+
+  .apikey-label {
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .apikey-chevron {
+    font-size: 11px;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .apikey-chevron.open { transform: rotate(180deg); }
+
+  .apikey-body {
+    padding: 0 20px 16px;
+    display: none;
+  }
+  .apikey-body.open { display: block; }
+
+  .apikey-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .apikey-input {
+    flex: 1;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    background: var(--bg);
+  }
+  .apikey-input:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: #e8e8ed;
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: #dededf; }
+
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #e0352b; }
+
+  .apikey-hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* ── Settings ── */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  label { font-size: 14px; }
+
+  select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    background: var(--bg);
+    cursor: pointer;
+    outline: none;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .reminder-note {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ── Email input ── */
+  textarea {
+    width: 100%;
+    min-height: 180px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    background: var(--bg);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  .parse-row { display: flex; gap: 8px; align-items: center; }
+
+  .error-box, .warn-box {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    display: none;
+  }
+  .error-box { background: #fff2f2; border: 1px solid #ffc5c5; color: var(--danger); }
+  .warn-box  { background: #fff8ec; border: 1px solid #ffd580; color: #7a5200; }
+  .error-box.show, .warn-box.show { display: block; }
+
+  /* ── Leg cards ── */
+  .leg-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .leg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .leg-num {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .span2 { grid-column: span 2; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+
+  .field label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+
+  .field input {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    background: var(--bg);
+    outline: none;
+    width: 100%;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  .tz-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    min-height: 14px;
+  }
+
+  .section-sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+
+  .add-leg-row {
+    margin-top: 4px;
+  }
+
+  /* ── Preview / download ── */
+  .preview-card {
+    background: #f9f9fb;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .preview-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .preview-time {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .preview-body {
+    font-size: 13px;
+    white-space: pre-wrap;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  .preview-meta {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .download-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 18px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .download-link:hover { background: var(--accent-hover); }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  .preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .btn-primary.loading .spinner { display: inline-block; }
+  .btn-primary.loading .btn-label { display: none; }
+
+  @media (max-width: 600px) {
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    .span2 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+
+<h1>FlightCal</h1>
+<p class="subtitle">Paste a flight confirmation email, get .ics files for Apple Calendar.</p>
+
+<!-- ── Section 0: API Key ── -->
+<div class="apikey-header">
+  <div class="apikey-toggle" id="apikeyToggle" onclick="toggleApiKey()">
+    <div class="apikey-status" id="apikeyStatus"></div>
+    <span class="apikey-label" id="apikeyLabel">Anthropic API Key</span>
+    <span class="apikey-chevron" id="apikeyChevron">▼</span>
+  </div>
+  <div class="apikey-body" id="apikeyBody">
+    <div class="apikey-row">
+      <input type="password" class="apikey-input" id="apikeyInput" placeholder="sk-ant-…" autocomplete="off">
+      <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="clearApiKey()">Clear</button>
+    </div>
+    <p class="apikey-hint">Stored in localStorage. Never sent anywhere except api.anthropic.com.</p>
+  </div>
+</div>
+
+<!-- ── Section 1: Settings ── -->
+<div class="card">
+  <div class="card-title">Settings</div>
+  <div class="settings-row">
+    <label for="checkinSelect">Check-in window</label>
+    <select id="checkinSelect" onchange="updateReminderNote()">
+      <option value="24">24 hours (most US domestic)</option>
+      <option value="30">30 hours (Southwest, some international)</option>
+    </select>
+    <span class="reminder-note" id="reminderNote"></span>
+  </div>
+</div>
+
+<!-- ── Section 2: Email Input ── -->
+<div class="card">
+  <div class="card-title">Flight Confirmation Email</div>
+  <textarea id="emailInput" placeholder="Paste your flight confirmation email here…"></textarea>
+  <div class="parse-row">
+    <button class="btn btn-primary" id="parseBtn" onclick="parseEmail()">
+      <span class="btn-label">Parse Email</span>
+      <span class="spinner"></span>
+    </button>
+    <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+  </div>
+  <div class="error-box" id="errorBox"></div>
+  <div class="warn-box" id="warnBox"></div>
+</div>
+
+<!-- ── Section 3: Leg Cards ── -->
+<div id="legsSection" style="display:none">
+  <div id="legCards"></div>
+  <div class="add-leg-row">
+    <button class="btn btn-secondary btn-sm" onclick="addLeg()">+ Add Leg</button>
+  </div>
+</div>
+
+<!-- ── Section 4: Preview & Download ── -->
+<div class="card" id="previewSection" style="display:none">
+  <div class="card-title">Preview &amp; Download</div>
+  <div class="preview-actions">
+    <button class="btn btn-secondary btn-sm" onclick="refreshPreviews()">↻ Refresh</button>
+  </div>
+  <div id="previews"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Airport timezone lookup (IATA → IANA)
+// ─────────────────────────────────────────────────────────────────────────────
+const AIRPORT_TZ = {
+  CDG:'Europe/Paris', ORY:'Europe/Paris',
+  LHR:'Europe/London', LGW:'Europe/London', STN:'Europe/London', MAN:'Europe/London',
+  AMS:'Europe/Amsterdam',
+  FRA:'Europe/Berlin', MUC:'Europe/Berlin', BER:'Europe/Berlin',
+  MAD:'Europe/Madrid', BCN:'Europe/Madrid',
+  FCO:'Europe/Rome', MXP:'Europe/Rome',
+  ZRH:'Europe/Zurich', GVA:'Europe/Zurich',
+  JFK:'America/New_York', LGA:'America/New_York', EWR:'America/New_York',
+  BOS:'America/New_York', MIA:'America/New_York', ATL:'America/New_York',
+  CLT:'America/New_York', RDU:'America/New_York', PHL:'America/New_York',
+  DCA:'America/New_York', IAD:'America/New_York', BWI:'America/New_York',
+  MCO:'America/New_York', TPA:'America/New_York', FLL:'America/New_York',
+  LEX:'America/New_York', CLE:'America/New_York', PIT:'America/New_York',
+  DTW:'America/Detroit',
+  ORD:'America/Chicago', MDW:'America/Chicago', MSP:'America/Chicago',
+  MCI:'America/Chicago', STL:'America/Chicago', BNA:'America/Chicago',
+  DFW:'America/Chicago', IAH:'America/Chicago', HOU:'America/Chicago',
+  AUS:'America/Chicago', SAT:'America/Chicago', MSY:'America/Chicago',
+  DEN:'America/Denver', SLC:'America/Denver', BOI:'America/Denver',
+  PHX:'America/Phoenix',
+  LAX:'America/Los_Angeles', SFO:'America/Los_Angeles', SAN:'America/Los_Angeles',
+  SEA:'America/Los_Angeles', PDX:'America/Los_Angeles', LAS:'America/Los_Angeles',
+  SJC:'America/Los_Angeles', OAK:'America/Los_Angeles',
+  ANC:'America/Anchorage',
+  HNL:'Pacific/Honolulu',
+  YYZ:'America/Toronto', YUL:'America/Toronto', YOW:'America/Toronto',
+  YVR:'America/Vancouver', YYC:'America/Vancouver',
+  MEX:'America/Mexico_City', CUN:'America/Cancun',
+  GRU:'America/Sao_Paulo', GIG:'America/Sao_Paulo',
+  EZE:'America/Argentina/Buenos_Aires',
+  DXB:'Asia/Dubai', AUH:'Asia/Dubai', DOH:'Asia/Qatar', TLV:'Asia/Jerusalem',
+  NRT:'Asia/Tokyo', HND:'Asia/Tokyo', KIX:'Asia/Tokyo',
+  ICN:'Asia/Seoul', PVG:'Asia/Shanghai', PEK:'Asia/Shanghai',
+  HKG:'Asia/Hong_Kong', SIN:'Asia/Singapore', BKK:'Asia/Bangkok',
+  DEL:'Asia/Kolkata', BOM:'Asia/Kolkata',
+  SYD:'Australia/Sydney', MEL:'Australia/Melbourne', AKL:'Pacific/Auckland',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Airport address lookup (IATA → [name, street?, city+zip, country])
+// ─────────────────────────────────────────────────────────────────────────────
+const AIRPORT_ADDR = {
+  LEX: ['Blue Grass Airport','4000 Terminal Drive','Lexington, KY 40510','United States'],
+  DTW: ['Detroit Metropolitan Wayne County Airport','1 Detroit Metropolitan Airport','Detroit, MI 48242','United States'],
+  ATL: ['Hartsfield-Jackson Atlanta International Airport','6000 N Terminal Pkwy','Atlanta, GA 30320','United States'],
+  BNA: ['Nashville International Airport','One Terminal Drive','Nashville, TN 37214','United States'],
+  BOS: ['Boston Logan International Airport','1 Harborside Drive','Boston, MA 02128','United States'],
+  BWI: ['Baltimore/Washington International Thurgood Marshall Airport','7062 Elm Rd','Baltimore, MD 21240','United States'],
+  CLT: ['Charlotte Douglas International Airport','5501 Josh Birmingham Pkwy','Charlotte, NC 28208','United States'],
+  DCA: ['Ronald Reagan Washington National Airport','1 Aviation Circle','Arlington, VA 22202','United States'],
+  DEN: ['Denver International Airport','8500 Peña Blvd','Denver, CO 80249','United States'],
+  DFW: ['Dallas/Fort Worth International Airport','2400 Aviation Drive','DFW Airport, TX 75261','United States'],
+  EWR: ['Newark Liberty International Airport','3 Brewster Rd','Newark, NJ 07114','United States'],
+  FLL: ['Fort Lauderdale-Hollywood International Airport','100 Terminal Drive','Fort Lauderdale, FL 33315','United States'],
+  HNL: ['Daniel K. Inouye International Airport','300 Rodgers Blvd','Honolulu, HI 96819','United States'],
+  HOU: ['William P. Hobby Airport','7800 Airport Blvd','Houston, TX 77061','United States'],
+  IAD: ['Washington Dulles International Airport','1 Saarinen Circle','Dulles, VA 20166','United States'],
+  IAH: ['George Bush Intercontinental Airport','2800 N Terminal Rd','Houston, TX 77032','United States'],
+  JFK: ['John F. Kennedy International Airport','Queens, NY 11430','United States'],
+  LAS: ['Harry Reid International Airport','5757 Wayne Newton Blvd','Las Vegas, NV 89119','United States'],
+  LAX: ['Los Angeles International Airport','1 World Way','Los Angeles, CA 90045','United States'],
+  LGA: ['LaGuardia Airport','Queens, NY 11371','United States'],
+  MCO: ['Orlando International Airport','1 Jeff Fuqua Blvd','Orlando, FL 32827','United States'],
+  MDW: ['Chicago Midway International Airport','5700 S Cicero Ave','Chicago, IL 60638','United States'],
+  MIA: ['Miami International Airport','2100 NW 42nd Ave','Miami, FL 33142','United States'],
+  MCI: ['Kansas City International Airport','1 Kansas City Blvd','Kansas City, MO 64153','United States'],
+  MSP: ['Minneapolis−Saint Paul International Airport','4300 Glumack Drive','St Paul, MN 55111','United States'],
+  MSY: ['Louis Armstrong New Orleans International Airport','900 Airline Drive','Kenner, LA 70062','United States'],
+  OAK: ['Oakland International Airport','1 Airport Drive','Oakland, CA 94621','United States'],
+  ORD: ['O\'Hare International Airport','10000 W O\'Hare Ave','Chicago, IL 60666','United States'],
+  PDX: ['Portland International Airport','7000 NE Airport Way','Portland, OR 97218','United States'],
+  PHL: ['Philadelphia International Airport','8000 Essington Ave','Philadelphia, PA 19153','United States'],
+  PHX: ['Phoenix Sky Harbor International Airport','3400 E Sky Harbor Blvd','Phoenix, AZ 85034','United States'],
+  PIT: ['Pittsburgh International Airport','1000 Airport Blvd','Pittsburgh, PA 15231','United States'],
+  RDU: ['Raleigh-Durham International Airport','2400 W Terminal Blvd','Morrisville, NC 27560','United States'],
+  SAT: ['San Antonio International Airport','9800 Airport Blvd','San Antonio, TX 78216','United States'],
+  SAN: ['San Diego International Airport','3225 N Harbor Drive','San Diego, CA 92101','United States'],
+  SEA: ['Seattle-Tacoma International Airport','17801 International Blvd','SeaTac, WA 98188','United States'],
+  SFO: ['San Francisco International Airport','San Francisco, CA 94128','United States'],
+  SJC: ['Norman Y. Mineta San Jose International Airport','1701 Airport Blvd','San Jose, CA 95110','United States'],
+  SLC: ['Salt Lake City International Airport','776 N Terminal Drive','Salt Lake City, UT 84122','United States'],
+  STL: ['St. Louis Lambert International Airport','10701 Lambert International Blvd','St. Louis, MO 63145','United States'],
+  TPA: ['Tampa International Airport','4100 George J Bean Pkwy','Tampa, FL 33607','United States'],
+  AUS: ['Austin-Bergstrom International Airport','3600 Presidential Blvd','Austin, TX 78719','United States'],
+  BOI: ['Boise Airport','3201 Airport Way','Boise, ID 83705','United States'],
+  ANC: ['Ted Stevens Anchorage International Airport','5000 W International Airport Rd','Anchorage, AK 99502','United States'],
+  CLE: ['Cleveland Hopkins International Airport','5300 Riverside Drive','Cleveland, OH 44135','United States'],
+  YYZ: ['Toronto Pearson International Airport','6301 Silver Dart Drive','Mississauga, ON L5P 1B2','Canada'],
+  YUL: ['Montréal-Pierre Elliott Trudeau International Airport','975 Roméo-Vachon Blvd N','Dorval, QC H4Y 1H1','Canada'],
+  YVR: ['Vancouver International Airport','3211 Grant McConachie Way','Richmond, BC V7B 0A4','Canada'],
+  MEX: ['Benito Juárez International Airport','Av. Capitán Carlos León s/n','Ciudad de México, 15740','Mexico'],
+  CUN: ['Cancún International Airport','Km. 22 Blvd. Kukulcan','Cancún, Quintana Roo 77565','Mexico'],
+  GRU: ['Aeroporto Internacional de São Paulo-Guarulhos','Rod. Hélio Smidt s/n','Guarulhos - SP, 07190-100','Brazil'],
+  EZE: ['Aeropuerto Internacional Ministro Pistarini','Autopista Ricchieri km 33.5','Ezeiza, Buenos Aires B1802','Argentina'],
+  LHR: ['London Heathrow Airport','Longford, Hounslow','London TW6 1AP','United Kingdom'],
+  LGW: ['London Gatwick Airport','Gatwick Airport','Horley RH6 0NP','United Kingdom'],
+  CDG: ['Aéroport Paris-Charles de Gaulle','95700 Roissy-en-France','France'],
+  AMS: ['Amsterdam Airport Schiphol','Evert van de Beekstraat 202','1118 CP Schiphol','Netherlands'],
+  FRA: ['Frankfurt Airport','Hugo-Eckener-Ring 1','60549 Frankfurt am Main','Germany'],
+  MUC: ['Munich Airport','Nordallee 25','85356 München','Germany'],
+  ZRH: ['Zürich Airport','Flughafenstrasse 10','8058 Zürich','Switzerland'],
+  FCO: ['Aeroporto di Roma-Fiumicino','Via dell\'Aeroporto di Fiumicino 320','00054 Fiumicino RM','Italy'],
+  MAD: ['Adolfo Suárez Madrid-Barajas Airport','28042 Madrid','Spain'],
+  BCN: ['Barcelona-El Prat Josep Tarradellas Airport','08820 El Prat de Llobregat','Spain'],
+  DXB: ['Dubai International Airport','Airport Road','Dubai','United Arab Emirates'],
+  SIN: ['Singapore Changi Airport','Airport Boulevard','Singapore 819642','Singapore'],
+  HKG: ['Hong Kong International Airport','1 Sky Plaza Road','Lantau Island','Hong Kong'],
+  NRT: ['Narita International Airport','1-1 Furugome','Narita, Chiba 282-0004','Japan'],
+  HND: ['Tokyo Haneda Airport','3-3-2 Hanedakuko, Ota-ku','Tokyo 144-0041','Japan'],
+  ICN: ['Incheon International Airport','272 Gonghang-ro, Jung-gu','Incheon 22382','South Korea'],
+  PVG: ['Shanghai Pudong International Airport','No.900, Yishan Rd','Shanghai 200335','China'],
+  SYD: ['Sydney Kingsford Smith Airport','Airport Drive','Mascot NSW 2020','Australia'],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parser system prompt (cached by Anthropic — stable content)
+// ─────────────────────────────────────────────────────────────────────────────
+const PARSER_SYSTEM_PROMPT = `You parse flight confirmation emails and return structured JSON only — no prose, no markdown.
+
+Return a single JSON object with this exact shape:
+{
+  "checkin_hours": 24,
+  "legs": [
+    {
+      "airline": "American Airlines",
+      "flightnum": "AA 100",
+      "op_airline": "",
+      "op_flightnum": "",
+      "op_pnr": "",
+      "origin": "JFK",
+      "dest": "LAX",
+      "depdt": "2026-08-25 08:00",
+      "arrdt": "2026-08-25 11:30",
+      "terminal": "",
+      "gate": "",
+      "seats": "12A",
+      "pnr": "ABC123",
+      "class": "Main Cabin",
+      "equipment": "Boeing 737"
+    }
+  ]
+}
+
+Rules:
+- checkin_hours: 30 for Southwest or if email mentions "30-hour" check-in, else 24.
+- flightnum: marketed flight number (e.g. "AA 100"). Include space between carrier and number.
+- op_airline / op_flightnum: operating carrier name and flight number if codeshare differs from marketed; else empty string.
+- op_pnr: operating carrier PNR/confirmation if different from main pnr; else empty string.
+- depdt / arrdt: "YYYY-MM-DD HH:MM" in local airport time, 24h format.
+- terminal: terminal letter/number only (e.g. "2", "B"); empty if unknown.
+- gate: gate identifier; empty if unknown.
+- seats: seat number(s); empty if not assigned.
+- pnr: main booking confirmation code.
+- class: fare class label from the email (e.g. "Main Cabin", "Business", "Economy"); empty if not stated.
+- equipment: aircraft type from email; empty if not stated.
+- All string values: use empty string "" for unknown/not-applicable, never null.
+- legs: ordered departure-time ascending.
+- Output ONLY the JSON object. No explanation.`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let legs = [];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API key UI
+// ─────────────────────────────────────────────────────────────────────────────
+function getApiKey() { return localStorage.getItem('fc_apikey') || ''; }
+
+function toggleApiKey() {
+  const body = document.getElementById('apikeyBody');
+  const chevron = document.getElementById('apikeyChevron');
+  const open = body.classList.toggle('open');
+  chevron.classList.toggle('open', open);
+  if (open) document.getElementById('apikeyInput').focus();
+}
+
+function saveApiKey() {
+  const val = document.getElementById('apikeyInput').value.trim();
+  if (!val) return;
+  localStorage.setItem('fc_apikey', val);
+  syncApiKeyStatus();
+  // Collapse after save
+  document.getElementById('apikeyBody').classList.remove('open');
+  document.getElementById('apikeyChevron').classList.remove('open');
+}
+
+function clearApiKey() {
+  localStorage.removeItem('fc_apikey');
+  document.getElementById('apikeyInput').value = '';
+  syncApiKeyStatus();
+}
+
+function syncApiKeyStatus() {
+  const key = getApiKey();
+  const status = document.getElementById('apikeyStatus');
+  const label  = document.getElementById('apikeyLabel');
+  if (key) {
+    status.className = 'apikey-status set';
+    label.textContent = 'Anthropic API Key ✓';
+  } else {
+    status.className = 'apikey-status';
+    label.textContent = 'Anthropic API Key — not set';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Settings
+// ─────────────────────────────────────────────────────────────────────────────
+function updateReminderNote() {
+  const hours = parseInt(document.getElementById('checkinSelect').value, 10);
+  const mins = hours === 30 ? 1830 : 1470;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const note = m === 0
+    ? `Reminder fires ${h}h before departure`
+    : `Reminder fires ${h}h ${m}m before departure`;
+  document.getElementById('reminderNote').textContent = note;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parse email
+// ─────────────────────────────────────────────────────────────────────────────
+async function parseEmail() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showError('Please set your Anthropic API key first.');
+    return;
+  }
+  const emailText = document.getElementById('emailInput').value.trim();
+  if (!emailText) {
+    showError('Please paste a flight confirmation email.');
+    return;
+  }
+
+  setParseLoading(true);
+  clearMessages();
+
+  // Security note: This calls the Anthropic API directly from the browser,
+  // which means the API key is visible in network requests. Acceptable for
+  // personal use; for public-facing deployments, proxy through a backend.
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        system: [
+          {
+            type: 'text',
+            text: PARSER_SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          }
+        ],
+        messages: [{ role: 'user', content: emailText.slice(0, 6000) }],
+      }),
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.json().catch(() => ({}));
+      if (resp.status === 401) {
+        showError('Invalid API key. Please check your Anthropic API key and try again.');
+        // Expand the key section to prompt correction
+        document.getElementById('apikeyBody').classList.add('open');
+        document.getElementById('apikeyChevron').classList.add('open');
+      } else {
+        showError(`API error ${resp.status}: ${errBody?.error?.message || resp.statusText}`);
+      }
+      return;
+    }
+
+    const data = await resp.json();
+    const raw = data?.content?.[0]?.text || '';
+    let parsed;
+    try {
+      // Strip markdown code fences if model wraps output anyway
+      const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      showError('Could not parse model response as JSON. Try again or edit the legs manually below.');
+      console.error('Raw model output:', raw);
+      return;
+    }
+
+    if (!parsed.legs || !Array.isArray(parsed.legs) || parsed.legs.length === 0) {
+      showError('No flight legs found in the email. Please check the input or add legs manually.');
+      return;
+    }
+
+    // Override checkin_hours from parsed if model detected 30h
+    if (parsed.checkin_hours === 30) {
+      document.getElementById('checkinSelect').value = '30';
+      updateReminderNote();
+    }
+
+    legs = parsed.legs.map(normalizeLeg);
+    renderLegCards();
+    refreshPreviews();
+
+    const unknownTZ = legs.filter(l => !AIRPORT_TZ[l.origin] || !AIRPORT_TZ[l.dest]);
+    if (unknownTZ.length > 0) {
+      const codes = [...new Set(unknownTZ.flatMap(l => [l.origin, l.dest].filter(c => !AIRPORT_TZ[c])))];
+      showWarn(`Timezone unknown for: ${codes.join(', ')}. Calendar events will use floating time (no timezone). Verify the times are correct.`);
+    }
+
+  } catch (err) {
+    showError(`Network error: ${err.message}`);
+  } finally {
+    setParseLoading(false);
+  }
+}
+
+function normalizeLeg(l) {
+  return {
+    airline:      l.airline      || '',
+    flightnum:    l.flightnum    || '',
+    op_airline:   l.op_airline   || '',
+    op_flightnum: l.op_flightnum || '',
+    op_pnr:       l.op_pnr       || '',
+    origin:       (l.origin || '').toUpperCase(),
+    dest:         (l.dest   || '').toUpperCase(),
+    depdt:        l.depdt        || '',
+    arrdt:        l.arrdt        || '',
+    terminal:     l.terminal     || '',
+    gate:         l.gate         || '',
+    seats:        l.seats        || '',
+    pnr:          l.pnr          || '',
+    class:        l.class        || '',
+    equipment:    l.equipment    || '',
+  };
+}
+
+function setParseLoading(on) {
+  const btn = document.getElementById('parseBtn');
+  btn.classList.toggle('loading', on);
+  btn.disabled = on;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Leg card rendering
+// ─────────────────────────────────────────────────────────────────────────────
+function renderLegCards() {
+  const container = document.getElementById('legCards');
+  container.innerHTML = '';
+  legs.forEach((leg, i) => container.appendChild(buildLegCard(leg, i)));
+  document.getElementById('legsSection').style.display = legs.length ? 'block' : 'none';
+  document.getElementById('previewSection').style.display = legs.length ? 'block' : 'none';
+}
+
+function buildLegCard(leg, i) {
+  const div = document.createElement('div');
+  div.className = 'leg-card';
+  div.id = `leg-${i}`;
+
+  const isFirst = i === 0;
+  const originTZ = AIRPORT_TZ[leg.origin] || '';
+  const destTZ   = AIRPORT_TZ[leg.dest]   || '';
+
+  div.innerHTML = `
+    <div class="leg-header">
+      <span class="leg-num">Leg ${i + 1}${isFirst ? ' — Check-in reminder included' : ''}</span>
+      ${legs.length > 1 ? `<button class="btn btn-danger btn-sm" onclick="removeLeg(${i})">Remove</button>` : ''}
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>Airline</label>
+        <input type="text" value="${esc(leg.airline)}" oninput="updateLeg(${i},'airline',this.value)">
+      </div>
+      <div class="field">
+        <label>Flight #</label>
+        <input type="text" value="${esc(leg.flightnum)}" oninput="updateLeg(${i},'flightnum',this.value)">
+      </div>
+      <div class="field">
+        <label>PNR / Confirmation</label>
+        <input type="text" value="${esc(leg.pnr)}" oninput="updateLeg(${i},'pnr',this.value)">
+      </div>
+    </div>
+
+    <hr class="section-sep">
+
+    <div class="grid2">
+      <div class="field">
+        <label>Origin (IATA)</label>
+        <input type="text" maxlength="3" value="${esc(leg.origin)}" oninput="updateLeg(${i},'origin',this.value.toUpperCase())">
+        <div class="tz-hint" id="tz-origin-${i}">${originTZ ? originTZ : '⚠ timezone unknown'}</div>
+      </div>
+      <div class="field">
+        <label>Destination (IATA)</label>
+        <input type="text" maxlength="3" value="${esc(leg.dest)}" oninput="updateLeg(${i},'dest',this.value.toUpperCase())">
+        <div class="tz-hint" id="tz-dest-${i}">${destTZ ? destTZ : '⚠ timezone unknown'}</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:12px">
+      <div class="field">
+        <label>Departure (local, 24h)</label>
+        <input type="text" placeholder="2026-08-25 18:12" value="${esc(leg.depdt)}" oninput="updateLeg(${i},'depdt',this.value)">
+      </div>
+      <div class="field">
+        <label>Arrival (local, 24h)</label>
+        <input type="text" placeholder="2026-08-25 19:42" value="${esc(leg.arrdt)}" oninput="updateLeg(${i},'arrdt',this.value)">
+      </div>
+    </div>
+
+    <div class="grid3" style="margin-top:12px">
+      <div class="field">
+        <label>Terminal</label>
+        <input type="text" value="${esc(leg.terminal)}" oninput="updateLeg(${i},'terminal',this.value)">
+      </div>
+      <div class="field">
+        <label>Gate</label>
+        <input type="text" value="${esc(leg.gate)}" oninput="updateLeg(${i},'gate',this.value)">
+      </div>
+      <div class="field">
+        <label>Seat(s)</label>
+        <input type="text" value="${esc(leg.seats)}" oninput="updateLeg(${i},'seats',this.value)">
+      </div>
+    </div>
+
+    <hr class="section-sep">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Codeshare (if operated by a different airline)</div>
+
+    <div class="grid3">
+      <div class="field">
+        <label>Operating Airline</label>
+        <input type="text" value="${esc(leg.op_airline)}" oninput="updateLeg(${i},'op_airline',this.value)">
+      </div>
+      <div class="field">
+        <label>Operating Flight #</label>
+        <input type="text" value="${esc(leg.op_flightnum)}" oninput="updateLeg(${i},'op_flightnum',this.value)">
+      </div>
+      <div class="field">
+        <label>Operating PNR</label>
+        <input type="text" value="${esc(leg.op_pnr)}" oninput="updateLeg(${i},'op_pnr',this.value)">
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:12px">
+      <div class="field">
+        <label>Class / Fare</label>
+        <input type="text" value="${esc(leg.class)}" oninput="updateLeg(${i},'class',this.value)">
+      </div>
+      <div class="field">
+        <label>Aircraft</label>
+        <input type="text" value="${esc(leg.equipment)}" oninput="updateLeg(${i},'equipment',this.value)">
+      </div>
+    </div>
+  `;
+  return div;
+}
+
+function updateLeg(i, field, value) {
+  legs[i][field] = value;
+  // Update TZ hints live when IATA codes change
+  if (field === 'origin') {
+    const tz = AIRPORT_TZ[value] || '';
+    document.getElementById(`tz-origin-${i}`).textContent = tz || '⚠ timezone unknown';
+  }
+  if (field === 'dest') {
+    const tz = AIRPORT_TZ[value] || '';
+    document.getElementById(`tz-dest-${i}`).textContent = tz || '⚠ timezone unknown';
+  }
+}
+
+function removeLeg(i) {
+  legs.splice(i, 1);
+  renderLegCards();
+  refreshPreviews();
+}
+
+function addLeg() {
+  legs.push(normalizeLeg({}));
+  renderLegCards();
+  refreshPreviews();
+  // Scroll new card into view
+  const card = document.getElementById(`leg-${legs.length - 1}`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ICS generation
+// ─────────────────────────────────────────────────────────────────────────────
+function formatICSDateTime(dtStr) {
+  if (!dtStr) return '';
+  const [date, time] = dtStr.split(' ');
+  if (!date || !time) return '';
+  return date.replace(/-/g, '') + 'T' + time.replace(':', '') + '00';
+}
+
+function foldLine(line) {
+  const CRLF = '\r\n';
+  if (line.length <= 75) return line;
+  let out = '';
+  let pos = 0;
+  while (pos < line.length) {
+    if (pos === 0) { out += line.slice(0, 75); pos = 75; }
+    else { out += CRLF + ' ' + line.slice(pos, pos + 74); pos += 74; }
+  }
+  return out;
+}
+
+function escICS(str) {
+  return (str || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+
+function shortAirline(name) {
+  return (name || '').replace(/ Air Lines$/i, '').replace(/ Airlines$/i, '');
+}
+
+function buildTitle(leg) {
+  const hasCodeshare = leg.op_flightnum && leg.op_flightnum !== leg.flightnum;
+  if (hasCodeshare) {
+    return `${leg.op_flightnum} (${leg.flightnum}) ${leg.dest}`;
+  }
+  return `${leg.flightnum} ${leg.dest}`.trim();
+}
+
+function buildLocation(leg) {
+  const addr = AIRPORT_ADDR[leg.origin];
+  if (!addr) return `${leg.origin} Airport`;
+  const parts = [...addr];
+  if (leg.terminal) {
+    const insertAt = Math.max(1, parts.length - 2);
+    parts.splice(insertAt, 0, `Terminal ${leg.terminal}`);
+  }
+  return parts.join('\n');
+}
+
+function buildDescription(leg) {
+  const hasOpPnr = leg.op_pnr && leg.op_pnr !== leg.pnr;
+  let pnrLine;
+  if (hasOpPnr) {
+    const opShort  = shortAirline(leg.op_airline);
+    const airShort = shortAirline(leg.airline);
+    pnrLine = `${opShort} ${leg.op_pnr} / ${airShort} ${leg.pnr}`;
+  } else {
+    pnrLine = `${shortAirline(leg.airline)} ${leg.pnr}`.trim();
+  }
+  const depTime = (leg.depdt || '').split(' ')[1] || '';
+  const arrTime = (leg.arrdt || '').split(' ')[1] || '';
+  let body = pnrLine + '\n\n' + `${depTime} – ${arrTime}`;
+  if (leg.seats) body += '\n' + leg.seats;
+  if (leg.equipment) body += '\n\n' + leg.equipment;
+  return body;
+}
+
+function generateUID() {
+  return 'fc-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '@flightcal';
+}
+
+function generateICS(leg, isFirstLeg, checkinHours) {
+  const CRLF = '\r\n';
+  const depTZ = AIRPORT_TZ[leg.origin] || null;
+  const arrTZ = AIRPORT_TZ[leg.dest]   || null;
+
+  const depICS = formatICSDateTime(leg.depdt);
+  const arrICS = formatICSDateTime(leg.arrdt);
+  if (!depICS || !arrICS) return null;
+
+  const dtstart = depTZ ? `DTSTART;TZID=${depTZ}:${depICS}` : `DTSTART:${depICS}Z`;
+  const dtend   = arrTZ ? `DTEND;TZID=${arrTZ}:${arrICS}`   : `DTEND:${arrICS}Z`;
+
+  // checkin window opens N hours before departure; reminder fires 30 min after window opens
+  // so trigger = (checkinHours * 60 - 30) minutes before departure
+  const triggerMinutes = checkinHours * 60 - 30;
+
+  const title    = escICS(buildTitle(leg));
+  const location = escICS(buildLocation(leg));
+  const desc     = escICS(buildDescription(leg));
+  const now      = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//FlightCal//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${generateUID()}`,
+    `DTSTAMP:${now}Z`,
+    dtstart,
+    dtend,
+    `SUMMARY:${title}`,
+    `LOCATION:${location}`,
+    `DESCRIPTION:${desc}`,
+  ];
+
+  if (isFirstLeg) {
+    lines.push(
+      'BEGIN:VALARM',
+      'TRIGGER;RELATED=START:-PT' + triggerMinutes + 'M',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:Check in for ${escICS(leg.flightnum)}`,
+      'END:VALARM',
+    );
+  }
+
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+
+  return lines.map(foldLine).join(CRLF) + CRLF;
+}
+
+function makeDataURI(icsContent) {
+  const utf8 = unescape(encodeURIComponent(icsContent));
+  const b64  = btoa(utf8);
+  return `data:text/calendar;charset=utf-8;base64,${b64}`;
+}
+
+function icsFilename(leg) {
+  const fn   = (leg.flightnum || 'flight').toLowerCase().replace(/\s+/g, '-');
+  const dest = (leg.dest || 'xxx').toLowerCase();
+  return `${fn}-${dest}.ics`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preview rendering
+// ─────────────────────────────────────────────────────────────────────────────
+function refreshPreviews() {
+  const container = document.getElementById('previews');
+  container.innerHTML = '';
+
+  if (!legs.length) {
+    container.innerHTML = '<p class="empty-state">No flight legs yet.</p>';
+    return;
+  }
+
+  const checkinHours = parseInt(document.getElementById('checkinSelect').value, 10);
+
+  legs.forEach((leg, i) => {
+    const isFirst = i === 0;
+    const ics = generateICS(leg, isFirst, checkinHours);
+
+    const card = document.createElement('div');
+    card.className = 'preview-card';
+
+    const title = buildTitle(leg);
+    const desc  = buildDescription(leg);
+
+    const depTime = (leg.depdt || '').split(' ')[1] || '';
+    const arrTime = (leg.arrdt || '').split(' ')[1] || '';
+    const depDate = (leg.depdt || '').split(' ')[0] || '';
+    const depTZ   = AIRPORT_TZ[leg.origin] || 'unknown timezone';
+    const arrTZ   = AIRPORT_TZ[leg.dest]   || 'unknown timezone';
+
+    const locationDisplay = buildLocation(leg).replace(/\n/g, ', ');
+
+    let downloadBtn = '';
+    if (ics) {
+      const uri = makeDataURI(ics);
+      const fn  = icsFilename(leg);
+      downloadBtn = `<a class="download-link" href="${uri}" download="${fn}">↓ Download ${fn}</a>`;
+    } else {
+      downloadBtn = '<span style="color:var(--danger);font-size:13px">⚠ Missing departure or arrival time — cannot generate .ics</span>';
+    }
+
+    card.innerHTML = `
+      <div class="preview-title">${esc(title)}</div>
+      <div class="preview-time">${depDate}  ${depTime} → ${arrTime}</div>
+      <div class="preview-body">${esc(desc)}</div>
+      <div class="preview-meta">
+        ${locationDisplay ? `📍 ${esc(locationDisplay)}<br>` : ''}
+        🕐 Departs ${depTZ}  |  Arrives ${arrTZ}<br>
+        ${isFirst ? `⏰ Check-in reminder: ${checkinHours}h window, alarm ${checkinHours * 60 - 30} min before departure` : ''}
+      </div>
+      ${downloadBtn}
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+function esc(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function showWarn(msg) {
+  const el = document.getElementById('warnBox');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function clearMessages() {
+  document.getElementById('errorBox').classList.remove('show');
+  document.getElementById('warnBox').classList.remove('show');
+}
+
+function clearAll() {
+  document.getElementById('emailInput').value = '';
+  legs = [];
+  renderLegCards();
+  document.getElementById('previews').innerHTML = '';
+  document.getElementById('previewSection').style.display = 'none';
+  clearMessages();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+(function init() {
+  const saved = getApiKey();
+  if (saved) document.getElementById('apikeyInput').value = saved;
+  syncApiKeyStatus();
+  updateReminderNote();
+})();
+</script>
+</body>
+</html>
