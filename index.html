@@ -720,7 +720,7 @@ function syncApiKeyStatus() {
 // ─────────────────────────────────────────────────────────────────────────────
 function updateReminderNote() {
   const hours = parseInt(document.getElementById('checkinSelect').value, 10);
-  const mins = hours === 30 ? 1830 : 1470;
+  const mins = hours * 60 + 30;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   const note = m === 0
@@ -1087,9 +1087,8 @@ function generateICS(leg, isFirstLeg, checkinHours) {
   const dtstart = depTZ ? `DTSTART;TZID=${depTZ}:${depICS}` : `DTSTART:${depICS}Z`;
   const dtend   = arrTZ ? `DTEND;TZID=${arrTZ}:${arrICS}`   : `DTEND:${arrICS}Z`;
 
-  // checkin window opens N hours before departure; reminder fires 30 min after window opens
-  // so trigger = (checkinHours * 60 - 30) minutes before departure
-  const triggerMinutes = checkinHours * 60 - 30;
+  // reminder fires 30 min before check-in window opens
+  const triggerMinutes = checkinHours * 60 + 30;
 
   const title    = escICS(buildTitle(leg));
   const locTitle = buildICSLocation(leg);
@@ -1190,7 +1189,7 @@ function refreshPreviews() {
       <div class="preview-meta">
         ${locationDisplay ? `📍 ${esc(locationDisplay)}<br>` : ''}
         🕐 Departs ${depTZ}  |  Arrives ${arrTZ}<br>
-        ${isFirst ? `⏰ Check-in reminder: ${checkinHours}h window, alarm ${checkinHours * 60 - 30} min before departure` : ''}
+        ${isFirst ? `⏰ Check-in reminder: ${checkinHours}h window, alarm ${checkinHours * 60 + 30} min before departure` : ''}
       </div>
       ${downloadBtn}
     `;
