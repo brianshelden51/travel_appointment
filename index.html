@@ -653,7 +653,7 @@ Return a single JSON object with this exact shape:
 }
 
 Rules:
-- checkin_hours: 30 for Southwest or if email mentions "30-hour" check-in, else 24.
+- checkin_hours: the check-in window in hours as explicitly stated in the email (e.g. "check-in opens 30 hours before departure"); default to 24 if not stated.
 - flightnum: marketed flight number (e.g. "AA 100"). Include space between carrier and number.
 - op_airline / op_flightnum: operating carrier name and flight number if codeshare differs from marketed; else empty string.
 - op_pnr: operating carrier PNR/confirmation if different from main pnr; else empty string.
@@ -1066,7 +1066,7 @@ function buildDescription(leg) {
   const depTime = (leg.depdt || '').split(' ')[1] || '';
   const arrTime = (leg.arrdt || '').split(' ')[1] || '';
   let body = pnrLine + '\n\n' + `${depTime} – ${arrTime}`;
-  if (leg.seats) body += '\n' + leg.seats;
+  body += '\n' + (leg.seats || 'Seats TBD');
   if (leg.equipment) body += '\n\n' + leg.equipment;
   return body;
 }
@@ -1120,6 +1120,14 @@ function generateICS(leg, isFirstLeg, checkinHours) {
       'TRIGGER;RELATED=START:-PT' + triggerMinutes + 'M',
       'ACTION:DISPLAY',
       `DESCRIPTION:Check in for ${escICS(leg.flightnum)}`,
+      'END:VALARM',
+    );
+  } else {
+    lines.push(
+      'BEGIN:VALARM',
+      'TRIGGER;RELATED=START:-PT60M',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${escICS(leg.flightnum)} departs in 1 hour`,
       'END:VALARM',
     );
   }
@@ -1189,7 +1197,7 @@ function refreshPreviews() {
       <div class="preview-meta">
         ${locationDisplay ? `📍 ${esc(locationDisplay)}<br>` : ''}
         🕐 Departs ${depTZ}  |  Arrives ${arrTZ}<br>
-        ${isFirst ? `⏰ Check-in reminder: ${checkinHours}h window, alarm ${checkinHours * 60 + 30} min before departure` : ''}
+        ${isFirst ? `⏰ Check-in reminder: ${checkinHours}h window, alarm ${checkinHours * 60 + 30} min before departure` : `⏰ 1-hour departure reminder`}
       </div>
       ${downloadBtn}
     `;
