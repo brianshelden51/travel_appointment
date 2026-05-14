@@ -476,7 +476,7 @@ const AIRPORT_TZ = {
 // ─────────────────────────────────────────────────────────────────────────────
 const AIRPORT_ADDR = {
   LEX: ['Blue Grass Airport','4000 Terminal Drive','Lexington, KY 40510','United States'],
-  DTW: ['Detroit Metropolitan Wayne County Airport','1 Detroit Metropolitan Airport','Detroit, MI 48242','United States'],
+  DTW: ['Detroit Metropolitan Wayne County Airport','Romulus, MI 48174','United States'],
   ATL: ['Hartsfield-Jackson Atlanta International Airport','6000 N Terminal Pkwy','Atlanta, GA 30320','United States'],
   BNA: ['Nashville International Airport','One Terminal Drive','Nashville, TN 37214','United States'],
   BOS: ['Boston Logan International Airport','1 Harborside Drive','Boston, MA 02128','United States'],
@@ -528,7 +528,7 @@ const AIRPORT_ADDR = {
   GRU: ['Aeroporto Internacional de São Paulo-Guarulhos','Rod. Hélio Smidt s/n','Guarulhos - SP, 07190-100','Brazil'],
   EZE: ['Aeropuerto Internacional Ministro Pistarini','Autopista Ricchieri km 33.5','Ezeiza, Buenos Aires B1802','Argentina'],
   LHR: ['London Heathrow Airport','Longford, Hounslow','London TW6 1AP','United Kingdom'],
-  LGW: ['London Gatwick Airport','Gatwick Airport','Horley RH6 0NP','United Kingdom'],
+  LGW: ['London Gatwick Airport','Horley RH6 0NP','United Kingdom'],
   CDG: ['Aéroport Paris-Charles de Gaulle','95700 Roissy-en-France','France'],
   AMS: ['Amsterdam Airport Schiphol','Evert van de Beekstraat 202','1118 CP Schiphol','Netherlands'],
   FRA: ['Frankfurt Airport','Hugo-Eckener-Ring 1','60549 Frankfurt am Main','Germany'],
@@ -543,7 +543,7 @@ const AIRPORT_ADDR = {
   NRT: ['Narita International Airport','1-1 Furugome','Narita, Chiba 282-0004','Japan'],
   HND: ['Tokyo Haneda Airport','3-3-2 Hanedakuko, Ota-ku','Tokyo 144-0041','Japan'],
   ICN: ['Incheon International Airport','272 Gonghang-ro, Jung-gu','Incheon 22382','South Korea'],
-  PVG: ['Shanghai Pudong International Airport','No.900, Yishan Rd','Shanghai 200335','China'],
+  PVG: ['Shanghai Pudong International Airport','Pudong New District, Shanghai 201202','China'],
   SYD: ['Sydney Kingsford Smith Airport','Airport Drive','Mascot NSW 2020','Australia'],
 };
 
@@ -582,7 +582,7 @@ Rules:
 - op_airline / op_flightnum: operating carrier name and flight number if codeshare differs from marketed; else empty string.
 - op_pnr: operating carrier PNR/confirmation if different from main pnr; else empty string.
 - depdt / arrdt: "YYYY-MM-DD HH:MM" in local airport time, 24h format.
-- terminal: terminal letter/number only (e.g. "2", "B"); empty if unknown.
+- terminal: departure terminal letter/number only (e.g. "2", "B"); this is the terminal at the origin airport where the passenger departs — NOT the arrival terminal; empty if not stated for the departure airport.
 - gate: gate identifier; empty if unknown.
 - seats: seat number(s); empty if not assigned.
 - pnr: main booking confirmation code.
