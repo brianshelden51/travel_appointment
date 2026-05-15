@@ -1065,7 +1065,7 @@ function buildDescription(leg) {
   }
   const depTime = (leg.depdt || '').split(' ')[1] || '';
   const arrTime = (leg.arrdt || '').split(' ')[1] || '';
-  let body = pnrLine + '\n' + `${leg.origin} → ${leg.dest}` + '\n' + `${depTime} – ${arrTime}`;
+  let body = pnrLine + '\n' + `${leg.origin} → ${leg.dest}` + '\n' + `${depTime} → ${arrTime}`;
   body += '\n' + (leg.seats || 'Seats TBD');
   if (leg.equipment) body += '\n\n' + leg.equipment;
   return body;
